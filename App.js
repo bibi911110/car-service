@@ -2,7 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Alert, View } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
-import * as Permissions from 'expo-permissions';
+import * as Location from 'expo-location';
 import Header from './components/Header';
 import Section1 from './components/Section1';
 import Section2 from './components/Section2';
@@ -79,32 +79,53 @@ export default function App() {
             return;
         }
 
-        const data = [
-            ['Driver', 'Vehicle', 'Plate', 'Date', 'Type', 'Name', 'Address', 'Comment'],
-            [state.driver, state.vehicle, state.plate, state.date, step, state.name, state.address, state.comment],
-        ];
+        Alert.alert('Please wait', 'Generating a file...', [], { cancelable: false });
 
-        saveFile('test');
+        // get location
+        Location.requestForegroundPermissionsAsync()
+            .then((result) => {
+                if (result.status !== 'granted') {
+                    Alert.alert('Error', 'Permission to access location was denied');
+                } else {
+                    Location.getCurrentPositionAsync({})
+                        .then((location) => {
+                            const data = `Driver,Vehicle,Plate,Date,Type,Name,Address,Comment,Location\n${state.driver},${state.vehicle},${state.plate},${state.date},${step},${state.name},${state.address},${state.comment},${location.coords.latitude}:${location.coords.longitude}`;
+                            saveFile(data);
+                        })
+                        .catch((e) => {
+                            Alert.alert(e.message);
+                        });
+                }
+            })
+            .catch((e) => {
+                Alert.alert(e.message);
+            });
     };
 
     const saveFile = async (content) => {
-        const { status } = await MediaLibrary.requestPermissionsAsync();
-        if (status === 'granted') {
-            const fileUri = `${FileSystem.documentDirectory}${Date.now()}.txt`;
-            await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.UTF8 });
+        try {
+            const { status } = await MediaLibrary.requestPermissionsAsync();
+            if (status === 'granted') {
+                const fileUri = `${FileSystem.documentDirectory}${Date.now()}.csv`;
+                await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.UTF8 });
 
-            const asset = await MediaLibrary.createAssetAsync(fileUri);
-            let album = await MediaLibrary.getAlbumAsync('Download');
+                const asset = await MediaLibrary.createAssetAsync(fileUri);
+                const album = await MediaLibrary.getAlbumAsync('CarService');
 
-            if (album == null) {
-                await MediaLibrary.createAlbumAsync('Download', asset, false);
+                if (album == null) {
+                    await MediaLibrary.createAlbumAsync('CarService', asset, false);
+                } else {
+                    await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                }
+
+                setStep('none');
+                dispatch({ type: 'RESET_ALL' });
+                Alert.alert('Success', asset.uri);
             } else {
-                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+                Alert.alert('Error', 'No permission to create a file');
             }
-
-            console.log(album, asset);
-        } else {
-            Alert.alert('Error', 'No permission to create a file');
+        } catch (error) {
+            Alert.alert('Error', error.message);
         }
     };
 
