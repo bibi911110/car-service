@@ -2,6 +2,7 @@ import { StatusBar } from 'expo-status-bar';
 import { Alert, View } from 'react-native';
 import * as MediaLibrary from 'expo-media-library';
 import * as FileSystem from 'expo-file-system';
+import * as Permissions from 'expo-permissions';
 import Header from './components/Header';
 import Section1 from './components/Section1';
 import Section2 from './components/Section2';
@@ -88,16 +89,22 @@ export default function App() {
 
     const saveFile = async (content) => {
         const { status } = await MediaLibrary.requestPermissionsAsync();
+        if (status === 'granted') {
+            const fileUri = `${FileSystem.documentDirectory}${Date.now()}.txt`;
+            await FileSystem.writeAsStringAsync(fileUri, content, { encoding: FileSystem.EncodingType.UTF8 });
 
-        if (status == 'granted') {
-            const fileUri = `${FileSystem.documentDirectory}${1}.doc`;
+            const asset = await MediaLibrary.createAssetAsync(fileUri);
+            let album = await MediaLibrary.getAlbumAsync('Download');
 
-            await FileSystem.writeAsStringAsync(fileUri, "Hello World, i'am saving this file :)");
+            if (album == null) {
+                await MediaLibrary.createAlbumAsync('Download', asset, false);
+            } else {
+                await MediaLibrary.addAssetsToAlbumAsync([asset], album, false);
+            }
 
-            const { uri } = await MediaLibrary.createAssetAsync(`${fileUri}`);
-
-            console.log(uri);
-            await MediaLibrary.createAssetAsync('Downloads', uri);
+            console.log(album, asset);
+        } else {
+            Alert.alert('Error', 'No permission to create a file');
         }
     };
 

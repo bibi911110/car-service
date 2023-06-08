@@ -20,7 +20,14 @@
                 "foregroundImage": "./assets/adaptive-icon.png",
                 "backgroundColor": "#ffffff"
             },
-            "permissions": ["WRITE_EXTERNAL_STORAGE"]
+            "permissions": ["WRITE_EXTERNAL_STORAGE"],
+            "scopedDirectories": [
+                {
+                    "directory": "Downloads",
+                    "path": "Download"
+                }
+            ],
+            "androidScopedStorage": true
         },
         "web": {
             "favicon": "./assets/favicon.png"
